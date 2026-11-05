@@ -42,6 +42,13 @@
 <body>
   <canvas id="solidcraft_canvas"></canvas>
   <div id="solidcraft_loading" role="status"><img src="loading-logo.svg" alt=""><span class="sr-only">Loading SolidCraft&hellip;</span></div>
+  <!-- Inert here; the Rust host uses this minimal module loader as its Worker bootstrap. -->
+  <script id="solidcraft_worker_bootstrap" type="text/plain">
+    self.onmessage = async ({data}) => {
+      try { const bindings = await import(data.url); await bindings.default({module_or_path: data.module}); }
+      catch (error) { self.postMessage(String(error)); }
+    };
+  </script>
   <script>
     // Offline use and updates (sw.js; written into release builds by `cargo xtask web-offline`).
     if ("serviceWorker" in navigator) {

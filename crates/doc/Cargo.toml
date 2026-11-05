@@ -17,6 +17,7 @@ solidcraft-profile = { workspace = true }
 solidcraft-render = { workspace = true }
 solidcraft-derive = { workspace = true }
 serde = { workspace = true }
+serde_bytes = "0.11"
 serde_json = { workspace = true, features = ["raw_value"] }
 thiserror = { workspace = true }
 log = { workspace = true }

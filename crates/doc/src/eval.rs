@@ -1,9 +1,13 @@
 //! Timeline evaluation.
 
+#[path = "model_transfer.rs"]
+mod model_transfer;
 #[path = "placed_mesh.rs"]
 mod placed_mesh;
 #[path = "placement_reuse.rs"]
 mod placement_reuse;
+
+pub use model_transfer::ModelTransfer;
 
 use solidcraft_geom::prelude::*;
 use std::collections::BTreeMap;

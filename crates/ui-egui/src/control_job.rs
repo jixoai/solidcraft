@@ -21,9 +21,10 @@
 //! file opened) the agent's command is refused, saying so, and nothing is applied.
 //!
 //! Done within the app's wait ([`crate::dialogs::APPLY_AT_ONCE`]), a request just runs, as
-//! before. Headless use, tests and the web build ([`SolveApp::apply_off_thread`] unset) run
-//! everything at once, and so does the app unless the preference is on (Preferences > AI,
-//! `agent_off_thread`, off by default).
+//! before. Headless use and tests ([`SolveApp::apply_off_thread`] unset) run everything at
+//! once, and so does the desktop app unless the preference is on (Preferences > AI,
+//! `agent_off_thread`, off by default). The browser host uses its dedicated engine Worker
+//! before requests reach this native-thread path (docs/browser-api.md).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -365,12 +366,16 @@ impl SolveApp {
             .as_ref()
             .map(|j| (j.started, j.steps.as_ref().map_or_else(|| j.label.clone(), |s| s.shown())))
             .or_else(|| self.agent.computing())
+            .or_else(|| self.external_control.as_ref().map(|(at, label, _)| (*at, label.clone())))
     }
 
     /// Stop waiting for the agent's design change that is computing: it is answered as stopped
     /// and nothing of it is applied (its worker finishes on its own, unseen). Requests waiting
     /// behind it go on.
     pub fn stop_agent_command(&mut self) {
+        if let Some((_, _, cancel)) = self.external_control.take() {
+            cancel.store(true, Ordering::Relaxed);
+        }
         let stopped = match self.control_job.take() {
             Some(job) => Some((job.req.reply, job.label)),
             None => self.agent.stop(),
@@ -382,6 +387,55 @@ impl SolveApp {
                 "error": format!("stopped: the person at the app stopped `{label}` while it computed; nothing was applied"),
             }));
         }
+    }
+
+    /// Host hook for a browser Worker. File operations and feature editors remain owned by
+    /// their existing handlers; this never opens a dialog.
+    pub fn worker_control_ready(&self) -> bool {
+        !self.file_load.busy() && self.file_picker.is_none() && self.saving.is_none() && self.applying.is_none()
+    }
+
+    pub fn prepare_worker_control(&mut self, method: &str, params: &Value) -> Result<bool, String> {
+        if !self.worker_control_ready() {
+            return Ok(false);
+        }
+        let history = executed(params).is_some_and(|(id, _)| matches!(id, "edit.undo" | "edit.redo"));
+        if matches!(method, "engine.execute" | "command") && history {
+            self.close_editor_for_history()?;
+        }
+        self.session.set_validation(self.preferences.validation);
+        Ok(true)
+    }
+
+    pub fn worker_control_started(&mut self, method: &str, params: &Value, cancel: Arc<std::sync::atomic::AtomicBool>) {
+        let command = executed(params)
+            .or_else(|| params.get("commands").and_then(Value::as_array).and_then(|steps| steps.first()).and_then(executed))
+            .map(|(id, _)| id.to_string())
+            .unwrap_or_else(|| method.to_string());
+        self.external_control = Some((crate::now_ms(), label(self, &command), cancel));
+    }
+
+    pub fn worker_control_finished(&mut self) {
+        self.external_control = None;
+    }
+
+    /// Apply only host effects; the engine transaction has already been accepted, including
+    /// its prepared geometry, selection and undo history.
+    pub fn complete_worker_control(&mut self, completion: solidcraft_engine::worker::Completion) -> Result<Value, String> {
+        if completion.commands.is_empty() {
+            return completion.result;
+        }
+        self.big_operation |= completion.compute_ms >= crate::recovery_ui::BIG_OPERATION_MS;
+        for (id, reply) in completion.commands {
+            self.command_completed(&id, Ok(reply))?;
+        }
+        if self.status_undo {
+            self.status_undo = false;
+            self.status = None;
+        }
+        self.tree.clear_folder_pick();
+        self.follow_view_request(false);
+        completion.result
     }
 
     /// Take a control request off the window thread when it computes long (see the module

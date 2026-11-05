@@ -91,7 +91,7 @@ pub fn run_api(site: &str) -> Result<(), String> {
     let work = TempDir::new()?;
     let server = Server::start(site.clone())?;
     server.set(Mode::Serve(site));
-    let browser = Chrome::launch(&chrome, &work.0.join("profile"))?;
+    let browser = Chrome::launch(&chrome, &work.0.join("profile"), &[])?;
     let mut cdp = browser.connect()?;
     let downloads = work.0.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
@@ -122,6 +122,212 @@ pub fn run_api(site: &str) -> Result<(), String> {
     println!("web-api-test: {keys}");
     Ok(())
 }
+
+/// Exercise the tools the browser build offers an agent through WebMCP, using the same Chrome
+/// harness as the offline test. Chrome only has WebMCP behind a feature, which the launch passes.
+pub fn run_webmcp(site: &str) -> Result<(), String> {
+    let site = std::fs::canonicalize(site).map_err(|e| format!("{site}: {e}; build apps/solidcraft-web with trunk first"))?;
+    if !site.join("index.html").is_file() {
+        return Err(format!("{}: index.html missing; build apps/solidcraft-web with trunk first", site.display()));
+    }
+    let chrome = find_chrome().ok_or("webmcp-test: Chrome not found (set CHROME to its executable)")?;
+    let work = TempDir::new()?;
+    let server = Server::start(site.clone())?;
+    server.set(Mode::Serve(site));
+    let browser = Chrome::launch(&chrome, &work.0.join("profile"), &["--enable-features=WebMCP"])?;
+    let mut cdp = browser.connect()?;
+    cdp.call("Emulation.setDeviceMetricsOverride", json!({"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": false}))?;
+    cdp.call("Page.navigate", json!({"url": format!("http://127.0.0.1:{}{PREFIX}", server.port)}))?;
+    wait_for(&mut cdp, "!!window.solidcraft && !document.getElementById('solidcraft_loading')", "the app and its WebMCP tools are ready", |v| {
+        v == true
+    })?;
+    let result = cdp.eval(WEBMCP_TEST)?;
+    println!("webmcp-test: {result}");
+    for (name, setup, assertion) in [
+        ("without WebMCP", "Object.defineProperty(document, 'modelContext', {value: undefined});", "!document.modelContext"),
+        (
+            "partial tool registration",
+            r#"
+            window.__nativeModelContext = document.modelContext;
+            window.__registrationWarnings = [];
+            window.__unhandledRejections = 0;
+            window.addEventListener('unhandledrejection', () => ++window.__unhandledRejections);
+            const warn = console.warn;
+            console.warn = (...args) => { const text = args.join(' '); if (text.startsWith('SolidCraft WebMCP:')) window.__registrationWarnings.push(text); warn(...args); };
+            Object.defineProperty(document, 'modelContext', {value: {
+                registerTool(tool) {
+                    if (tool.name === 'solidcraft_list_commands') throw new Error('synchronous refusal');
+                    if (tool.name === 'solidcraft_describe_command') return Promise.reject(new Error('asynchronous refusal'));
+                    return window.__nativeModelContext.registerTool(tool);
+                }
+            }});
+        "#,
+            "(await window.__nativeModelContext.getTools()).length === 3 && window.__registrationWarnings.length === 2 && window.__unhandledRejections === 0",
+        ),
+    ] {
+        let mut tab = browser.new_tab()?;
+        tab.call("Page.enable", json!({}))?;
+        tab.call("Page.addScriptToEvaluateOnNewDocument", json!({"source": setup}))?;
+        tab.call("Page.navigate", json!({"url": format!("http://127.0.0.1:{}{PREFIX}?embed=editor", server.port)}))?;
+        wait_for(&mut tab, "!!window.solidcraft && !document.getElementById('solidcraft_loading')", name, |v| v == true)?;
+        let usable = tab.eval(&format!("(async () => {{ await solidcraft.execute('view.fit'); return {assertion}; }})()"))?;
+        if usable != true {
+            return Err(format!("webmcp-test: app did not remain usable {name}: {usable}"));
+        }
+        println!("webmcp-test: app usable {name}");
+    }
+    Ok(())
+}
+
+/// An agent's session, as the browser hands its tools over: discover, read the catalog, run a part
+/// in one batch and measure it. The part is an EN 1092-1 DN 50 PN 16 blind flange, whose
+/// dimensions are the public DN 50 chart (flange Ø 165, bolt circle Ø 125, 4 × Ø 18 holes, raised
+/// face Ø 102 × 2, thickness 18); its volume is computed here from those numbers.
+const WEBMCP_TEST: &str = r#"(async () => {
+    const mc = document.modelContext;
+    if (!mc) throw new Error('this browser has no WebMCP: document.modelContext is missing (Chrome 149 and later, launched with --enable-features=WebMCP)');
+    const check = (condition, message) => { if (!condition) throw new Error(message); };
+    const tools = await mc.getTools();
+    const tool = name => tools.find(t => t.name === name);
+    const names = tools.map(t => t.name).sort();
+    check(JSON.stringify(names) === JSON.stringify(['solidcraft_batch', 'solidcraft_describe_command', 'solidcraft_execute', 'solidcraft_inspect', 'solidcraft_list_commands']), 'the page offers ' + names.join(', '));
+    check(tool('solidcraft_execute').annotations.consequentialHint === true, 'running commands is marked consequential');
+    check(tool('solidcraft_batch').annotations.readOnlyHint === false, 'batching changes the design');
+    check(tool('solidcraft_list_commands').annotations.readOnlyHint === true, 'listing is read-only');
+    check(tool('solidcraft_inspect').annotations.untrustedContentHint === true, 'imported design names are marked as untrusted content');
+    check(tool('solidcraft_execute').inputSchema.required[0] === 'command', 'the execute schema requires a command');
+    const call = async (name, input) => {
+        const text = await mc.executeTool(tool(name), input);
+        check(typeof text === 'string', name + ' answers a JSON string');
+        return JSON.parse(text);
+    };
+
+    const catalog = await call('solidcraft_list_commands', {});
+    check(catalog.ok === true && Array.isArray(catalog.result), 'the catalog answers ok');
+    check(catalog.result.some(c => c.id === 'solid.box' && c.params), 'the catalog lists solid.box and its parameters');
+    const box = await call('solidcraft_describe_command', {command: 'solid.box'});
+    check(box.ok === true && JSON.stringify(box.result).includes('length'), 'describing solid.box gives its parameters');
+
+    // Hold an actual worker request at its transport boundary: frames must continue while
+    // the reply is pending. Release is explicit; the assertion does not depend on CPU speed.
+    const post = Worker.prototype.postMessage;
+    let held;
+    Worker.prototype.postMessage = function(...args) {
+        if (args[0] instanceof ArrayBuffer && !held) { held = [this, args]; return; }
+        return Reflect.apply(post, this, args);
+    };
+    try {
+        let settled = false;
+        const pending = call('solidcraft_inspect', {}).then(result => { settled = true; return result; });
+        for (let frame = 0; frame < 300 && !held; ++frame) await new Promise(requestAnimationFrame);
+        check(held && !settled, 'the inspection is waiting on the worker');
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        check(!settled, 'the window keeps presenting frames while the worker is held');
+        Reflect.apply(post, held[0], held[1]);
+        check((await pending).ok === true, 'the released worker answers the inspection');
+    } finally { Worker.prototype.postMessage = post; }
+
+    // WebMCP cancellation reaches both the pending request and the computing worker. A held
+    // transaction cannot mutate the design after its caller has aborted it.
+    held = undefined;
+    Worker.prototype.postMessage = function(...args) {
+        if (args[0] instanceof ArrayBuffer && !held) { held = [this, args]; return; }
+        return Reflect.apply(post, this, args);
+    };
+    try {
+        const controller = new AbortController();
+        const cancelled = mc.executeTool(tool('solidcraft_execute'), {command:'solid.box', params:{length:10,width:10,height:10}}, {signal:controller.signal})
+            .then(() => false, error => error.name === 'AbortError');
+        for (let frame = 0; frame < 300 && !held; ++frame) await new Promise(requestAnimationFrame);
+        check(held, 'the cancellable command reached the worker');
+        controller.abort();
+        check(await cancelled, 'the browser reports the aborted tool call');
+    } finally { Worker.prototype.postMessage = post; }
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 0, 'an aborted worker command leaves the design unchanged');
+
+    // A transport/encoding failure is local to one transaction. Hold a real request, then
+    // deliver the same failure message the worker loader sends, without running its box.
+    held = undefined;
+    Worker.prototype.postMessage = function(...args) {
+        if (args[0] instanceof ArrayBuffer && !held) { held = [this, args]; return; }
+        return Reflect.apply(post, this, args);
+    };
+    const workersBeforeFailure = solidcraft.runtime().workers_started;
+    try {
+        const failed = call('solidcraft_execute', {command:'solid.box', params:{length:2,width:3,height:4}});
+        for (let frame = 0; frame < 300 && !held; ++frame) await new Promise(requestAnimationFrame);
+        check(held, 'the failing transaction reached the worker');
+        held[0].dispatchEvent(new MessageEvent('message', {data:'worker message exceeds its test byte limit'}));
+        const result = await failed;
+        check(result.ok === false && result.error.includes('byte limit'), 'worker failure retains its diagnostic');
+    } finally { Worker.prototype.postMessage = post; }
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 0, 'a failed worker transaction leaves the design unchanged');
+    check(solidcraft.runtime().workers_started === workersBeforeFailure + 1, 'the next request starts a usable worker after failure');
+
+    // A wrong argument and an unknown command come back as data: the browser would replace a
+    // thrown error with a generic one, and the reason is what an agent needs.
+    const refused = await call('solidcraft_execute', {command: 'solid.box', params: []});
+    check(refused.ok === false && String(refused.error).includes('params'), 'a wrong argument is refused with its reason: ' + JSON.stringify(refused));
+    const unknown = await call('solidcraft_execute', {command: 'missing.command'});
+    check(unknown.ok === false && unknown.error, 'an unknown command is refused with its reason: ' + JSON.stringify(unknown));
+    const oversized = await call('solidcraft_execute', {command: 'view.fit', params: {padding: 'x'.repeat(16 * 1024 * 1024)}});
+    check(oversized.ok === false && String(oversized.error).includes('16 MiB'), 'WebMCP enforces the browser API input limit');
+    const malformed = await call('solidcraft_batch', {rollback: false, commands: [
+        {command: 'solid.box', params: {length: 10, width: 10, height: 10}},
+        {command: 'view.fit', params: []},
+    ]});
+    check(malformed.ok === false && String(malformed.error).includes('commands[1]'), 'invalid batch steps are refused before running');
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 0, 'an invalid batch leaves the empty design unchanged');
+
+    const flange = [
+        {command: 'sketch.create', params: {plane: 'XY'}},
+        {command: 'sketch.circle.center', params: {center: [0, 0], diameter: 165}},
+        {command: 'sketch.finish', params: {}},
+        {command: 'solid.extrude', params: {distance: 16, operation: 'new', body_name: 'DN50 PN16 blind flange'}},
+        {command: 'sketch.create', params: {plane: 'XY', offset: 16}},
+        {command: 'sketch.circle.center', params: {center: [0, 0], diameter: 102}},
+        {command: 'sketch.finish', params: {}},
+        {command: 'solid.extrude', params: {distance: 2, operation: 'join'}},
+        {command: 'sketch.create', params: {plane: 'XY'}},
+        {command: 'sketch.circle.center', params: {center: [44.1942, 44.1942], diameter: 18}},
+        {command: 'sketch.circle.center', params: {center: [-44.1942, 44.1942], diameter: 18}},
+        {command: 'sketch.circle.center', params: {center: [-44.1942, -44.1942], diameter: 18}},
+        {command: 'sketch.circle.center', params: {center: [44.1942, -44.1942], diameter: 18}},
+        {command: 'sketch.finish', params: {}},
+        {command: 'solid.extrude', params: {distance: 18, operation: 'cut'}},
+    ];
+    const built = await call('solidcraft_batch', {commands: flange});
+    check(built.ok === true, 'the flange batch runs: ' + JSON.stringify(built).slice(0, 600));
+    const design = await call('solidcraft_inspect', {measure: true});
+    check(design.ok === true && design.result.bodies.length === 1, 'the batch leaves one body');
+    const body = design.result.bodies[0];
+    const volume = Math.PI / 4 * (165 * 165 * 16 + 102 * 102 * 2 - 4 * 18 * 18 * 16);
+    check(Math.abs(body.volume_mm3 - volume) < volume * 1e-3, 'volume ' + body.volume_mm3 + ' mm³, not ' + volume);
+    check(Math.abs(body.bbox.max[0] - 82.5) < 1e-6 && Math.abs(body.bbox.min[2]) < 1e-6 && Math.abs(body.bbox.max[2] - 18) < 1e-6,
+        'bounding box ' + JSON.stringify(body.bbox));
+
+    // A command is undoable through the same tools, and a batch that fails puts the design back.
+    await call('solidcraft_execute', {command: 'solid.box', params: {length: 10, width: 10, height: 10, body_name: 'Undo box'}});
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 2, 'a second command adds a body');
+    await call('solidcraft_execute', {command: 'edit.undo'});
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 1, 'undo removes that body');
+    await call('solidcraft_execute', {command: 'edit.redo'});
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 2, 'redo puts it back');
+    const failed = await call('solidcraft_batch', {commands: [
+        {command: 'solid.box', params: {length: 5, width: 5, height: 5, body_name: 'Rollback box'}},
+        {command: 'solid.fillet', params: {edges: [[0, 0, 100]], radius: 1}},
+    ]});
+    check(failed.ok === false && failed.error && failed.result.failed.index === 1 && failed.result.rolled_back === true,
+        'a batch failure answers ok:false and retains rollback details: ' + JSON.stringify(failed).slice(0, 400));
+    check((await call('solidcraft_inspect', {})).result.bodies.length === 2, 'the failed batch leaves the design as it was');
+
+    const runtime = solidcraft.runtime();
+    check(runtime.worker_requests >= 8 && runtime.workers_started === workersBeforeFailure + 1, 'the replacement worker is reused after cancellation and failure: ' + JSON.stringify(runtime));
+
+    return {tools: names.join(', '), commands: catalog.result.length, body: body.name, volume_mm3: Math.round(body.volume_mm3 * 1000) / 1000,
+        expected_mm3: Math.round(volume * 1000) / 1000, bbox: body.bbox, refused: 'as data', undo: 'one command', rollback: 'design restored', runtime};
+})()"#;
 
 /// The browser's own tab switching keys reach it while the app has the keyboard (#5227): their
 /// default action isn't cancelled, while Tab's is (the app moves between its fields with it).
@@ -212,6 +418,14 @@ const API_TEST: &str = r#"(async () => {
     await app.request('ui.inspect');
     const [x, y] = await app.request('ui.at', {handle: 'dialog:Export DXF…'});
     await app.request('ui.click', {x, y});
+    // The synthetic click is applied by a later UI frame. Wait before Save renames the
+    // document, so the export picker captures the expected Untitled-view.dxf name.
+    let exportUi = await app.request('ui.inspect');
+    for (let frame = 0; frame < 120 && exportUi.dialog; ++frame) {
+        await new Promise(requestAnimationFrame);
+        exportUi = await app.request('ui.inspect');
+    }
+    check(!exportUi.dialog, 'the export dialog closed');
     // Browser files exist only in the VFS: native filesystem metadata cannot find them.
     await app.execute('file.save', {path: '/upload/linked-part.sc'});
     await app.execute('file.new');
@@ -229,7 +443,12 @@ const API_TEST: &str = r#"(async () => {
     }
     check(menu.items?.some(item => item.id === 'ui.openLinkedDesign'), 'occurrence menu offers the source design');
     await app.request('ui.menuPick', {item: 'ui.openLinkedDesign'});
-    const tabs = await app.request('ui.documents');
+    // Opening a browser file completes asynchronously after the menu action is acknowledged.
+    let tabs = await app.request('ui.documents');
+    for (let frame = 0; frame < 120 && !(tabs.documents.length === 2 && tabs.active === 1); ++frame) {
+        await new Promise(requestAnimationFrame);
+        tabs = await app.request('ui.documents');
+    }
     check(tabs.documents.length === 2 && tabs.active === 1, 'linked source opens in another tab');
     check((await app.inspect()).bodies[0].name === 'Browser API box', 'source design is active');
     await app.request('ui.documents', {action: 'switch', index: 0});
@@ -289,7 +508,7 @@ pub fn run(root: &Path, site: Option<&str>, required: bool) -> Result<(), String
     web_offline::retire(root, &dev)?;
 
     let server = Server::start(v2.clone())?;
-    let browser = Chrome::launch(&chrome, &work.0.join("profile"))?;
+    let browser = Chrome::launch(&chrome, &work.0.join("profile"), &[])?;
     let mut cdp = browser.connect()?;
     // Every file any build keeps, by name (the state counts a cache's entries among them).
     let mut files = std::collections::BTreeSet::new();
@@ -918,11 +1137,12 @@ struct Chrome {
 }
 
 impl Chrome {
-    fn launch(exe: &Path, profile: &Path) -> Result<Chrome, String> {
+    fn launch(exe: &Path, profile: &Path, extra: &[&str]) -> Result<Chrome, String> {
         let mut c = Command::new(exe);
         c.arg("--headless=new")
             .arg(format!("--user-data-dir={}", profile.display()))
             .args(["--remote-debugging-port=0", "--no-first-run", "--no-default-browser-check", "about:blank"])
+            .args(extra)
             .stdout(Stdio::null())
             .stderr(Stdio::null());
         // Linux CI runners don't allow Chrome's sandbox; the browser only opens this test's pages.

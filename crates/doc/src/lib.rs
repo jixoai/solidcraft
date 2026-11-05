@@ -97,7 +97,7 @@ pub use eval::{
     state_in_frame, state_in_frame_at, suggested_thread, suggested_thread_in, tangent_face_chain, through_all_distance, with_placed_copies,
     world_state, world_state_reusing,
 };
-pub use eval::{EvalCache, KeptResults};
+pub use eval::{EvalCache, KeptResults, ModelTransfer};
 pub use expr::Expr;
 pub use names::{BodyName, FeatureId, FeatureName, SketchId, copy_name};
 pub use params::{ParamRow, ParamUser, cycles};

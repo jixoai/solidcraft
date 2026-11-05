@@ -12,6 +12,12 @@ Related: [plugins.md](plugins.md) and [#1221](https://github.com/bherbruck/solid
 (desktop WIT + wasmtime first; parametric timeline features in phase 2), [design containers](design-container.md),
 [control protocol](control-protocol.md).
 
+The current [browser API and WebMCP](browser-api.md) use a dedicated engine Worker per editor.
+It reuses the compiled wasm module, runs modelling and measurement away from the window, and
+returns evaluated geometry and history over a bounded binary protocol. That implementation is
+in `apps/solidcraft-web/src/worker.rs` and `crates/engine/src/worker.rs`. The shared storage and
+GPU broker below remains a wider integration plan; the editor worker does not implement it.
+
 ## Problem
 
 The wasm app today ([`getting-started`](../docs/book/src/guide/getting-started.md)) keeps designs in
@@ -107,7 +113,7 @@ providers and key namespaces only.
 | Mode | Transport |
 |------|-----------|
 | Desktop agent | `solidcraft-cli mcp` (stdio) or `--connect` to [control protocol](control-protocol.md) |
-| Browser agent | RPC to broker session; dialog-free tools only |
+| Browser agent | WebMCP tools on the page, over the same control methods ([browser-api.md](browser-api.md)); target: RPC to broker session; dialog-free tools only |
 | IDE bridge | Optional local relay (stdio MCP ↔ tab); not required for CollabCraft-hosted wasm |
 
 File policy for web agents mirrors MCP folders: design directory, cold tier roots, recovery;

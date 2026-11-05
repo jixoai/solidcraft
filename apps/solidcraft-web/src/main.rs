@@ -25,6 +25,10 @@ mod keep;
 mod linked;
 #[cfg(any(target_arch = "wasm32", test))]
 mod space_mouse;
+#[cfg(any(target_arch = "wasm32", test))]
+mod webmcp;
+#[cfg(target_arch = "wasm32")]
+mod worker;
 
 /// The browser switches tabs with Ctrl+Tab and Ctrl+Shift+Tab, so the page leaves those keys to
 /// it (#5227); plain Tab and Shift+Tab still move between the app's fields. (Ctrl+PageUp and
@@ -349,6 +353,7 @@ mod web {
         linked: crate::linked::Download,
         full_url: Option<String>,
         api: Api,
+        control: crate::worker::Control,
         files: Rc<Files>,
         /// When the last autosave was (seconds), and the revision it holds (none stored: `None`).
         autosaved_at: f64,
@@ -1040,6 +1045,7 @@ mod web {
             // First: a language another tab chose fetches its font this frame.
             self.load_other_tabs_prefs();
             self.tick_font(ctx);
+            self.control.tick(&mut self.app, ctx);
             self.app.logic(ctx);
             self.api.poll();
             self.space_mouse.logic(&mut self.app, ctx);
@@ -1216,7 +1222,8 @@ mod web {
                         }};
                         // Thumbnails of saves and start-page cards.
                         solidcraft_ui_egui::gpu::install_cpu_picture_renderer();
-                        let (sender, receiver) = std::sync::mpsc::channel();
+                        let (sender, requests) = std::sync::mpsc::channel();
+                        let (control_sender, receiver) = std::sync::mpsc::channel();
                         let mut app = SolveApp::new(Session::default(), services).with_control(receiver);
                         app.embedded = launch.embed;
                         app.embed_editor = launch.editor;
@@ -1248,6 +1255,8 @@ mod web {
                             app.home.show(rev);
                         }
                         let api = Api::install(sender, cc.egui_ctx.clone()).map_err(|e| format!("SolidCraft browser API: {e:?}"))?;
+                        let control = crate::worker::Control::new(requests, control_sender, &cc.egui_ctx);
+                        control.install_diagnostics().map_err(|e| format!("SolidCraft worker diagnostics: {e:?}"))?;
                         let font_language = app.preferences.language.clone();
                         let linked = crate::linked::Download::start(launch.open.as_deref(), &cc.egui_ctx);
                         let full_url = window.location().href().ok().and_then(|value| url::Url::parse(&value).ok()).map(|url| launch.full_app_url(url));
@@ -1257,6 +1266,7 @@ mod web {
                             linked,
                             full_url,
                             api,
+                            control,
                             files,
                             autosaved_at: f64::NEG_INFINITY,
                             autosaved: None,
@@ -1300,7 +1310,11 @@ mod web {
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
-    web::start();
+    if web_sys::window().is_some() {
+        web::start();
+    } else {
+        worker::start();
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

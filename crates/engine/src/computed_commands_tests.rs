@@ -41,6 +41,129 @@ fn failure_discards_the_entire_batch() {
     assert!(session.undo.is_empty());
 }
 
+fn worker_call(
+    runtime: &mut crate::worker::Runtime,
+    session: &mut Session,
+    method: &str,
+    params: serde_json::Value,
+    sync: bool,
+) -> serde_json::Value {
+    let source = crate::worker::Source::new(session);
+    let bytes = source.request(method, params, sync, crate::doc::display_quality::DisplayQuality::Normal).unwrap();
+    let reply = crate::worker::Reply::decode(&runtime.run(&bytes).unwrap()).unwrap();
+    source.accept(session, reply).unwrap().result.unwrap()
+}
+
+#[test]
+fn worker_transactions_transfer_exact_models_and_history_without_ui_evaluation() {
+    let mut session = Session { path: Some("working.sc".into()), ..Default::default() };
+    let saved = session.saved.clone();
+    let mut runtime = crate::worker::Runtime::default();
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"solid.box","params":{"length":2,"width":3,"height":4}}), true);
+    assert_eq!(session.evaluations, 0, "adoption cannot evaluate on the receiving thread");
+    assert_eq!(session.model.last_recomputed, 0);
+    assert!(Arc::ptr_eq(&saved, &session.saved));
+    assert_eq!(session.path.as_deref(), Some("working.sc"));
+    let body = &session.model.state().bodies[0];
+    assert!(body.cached_mesh().is_some(), "the first frame must not tessellate");
+    assert!((body.measure().unwrap().volume - 24.0).abs() < 1e-6);
+    let measured = worker_call(&mut runtime, &mut session, "document.inspect", json!({"measure":true}), false);
+    assert_eq!(measured["undo"], 1);
+    assert_eq!(measured["path"], "working.sc");
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"solid.box","params":{"length":1,"width":1,"height":1}}), false);
+    assert_eq!(session.undo.len(), 2);
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"edit.undo"}), false);
+    assert_eq!(session.model.state().bodies.len(), 1);
+    assert_eq!(session.redo.len(), 1);
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"edit.redo"}), false);
+    assert_eq!(session.model.state().bodies.len(), 2);
+    assert_eq!(session.evaluations, 0);
+}
+
+#[test]
+fn worker_keeps_sketch_cancel_and_batch_rollback() {
+    let mut session = Session::default();
+    let mut runtime = crate::worker::Runtime::default();
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"sketch.create","params":{"plane":"XY"}}), true);
+    worker_call(
+        &mut runtime,
+        &mut session,
+        "engine.execute",
+        json!({"command":"sketch.circle.center","params":{"center":[0,0],"diameter":10}}),
+        false,
+    );
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"sketch.cancel"}), false);
+    assert!(session.doc.features.is_empty());
+    let before = session.undo.len();
+    let result = worker_call(
+        &mut runtime,
+        &mut session,
+        "engine.batch",
+        json!({"commands":[
+            {"command":"solid.box","params":{"length":2,"width":3,"height":4}},
+            {"command":"solid.fillet","params":{"edges":[[0,0,100]],"radius":1}}
+        ]}),
+        false,
+    );
+    assert_eq!(result["rolled_back"], true);
+    assert!(session.model.state().bodies.is_empty());
+    assert_eq!(session.undo.len(), before);
+}
+
+#[test]
+fn worker_rejects_stale_results_and_nonportable_host_effects() {
+    let mut session = Session::default();
+    let source = crate::worker::Source::new(&session);
+    let request = source
+        .request(
+            "engine.execute",
+            json!({"command":"solid.box","params":{"length":2,"width":3,"height":4}}),
+            true,
+            crate::doc::display_quality::DisplayQuality::Normal,
+        )
+        .unwrap();
+    let bytes = crate::worker::Runtime::default().run(&request).unwrap();
+    session.execute("parameters.add", &json!({"name":"UserEdit","expression":"10 mm"})).unwrap();
+    let document = session.doc.clone();
+    assert!(source.accept(&mut session, crate::worker::Reply::decode(&bytes).unwrap()).is_err());
+    assert!(Arc::ptr_eq(&document, &session.doc));
+    assert!(session.model.state().bodies.is_empty());
+    for command in ["doc.open", "file.export", "sketch.copy", "component.edit_in_place", "view.next_tab"] {
+        assert!(!crate::worker::supports("engine.execute", &json!({"command":command})), "{command}");
+    }
+    let mut runtime = crate::worker::Runtime::default();
+    for bytes in [vec![], vec![0xff], vec![0x81, 0xa1, b'x', 0xc0]] {
+        assert!(runtime.run(&bytes).is_err());
+    }
+}
+
+#[test]
+fn worker_reply_budget_failure_keeps_the_source_and_accepts_the_next_request() {
+    let mut session = Session::default();
+    let mut runtime = crate::worker::Runtime::default();
+    worker_call(&mut runtime, &mut session, "engine.execute", json!({"command":"solid.box","params":{"length":2,"width":3,"height":4}}), true);
+    let source = crate::worker::Source::new(&session);
+    let request = source
+        .request(
+            "engine.execute",
+            json!({"command":"solid.box","params":{"length":5,"width":6,"height":7}}),
+            false,
+            crate::doc::display_quality::DisplayQuality::Normal,
+        )
+        .unwrap();
+    let before = session.doc.clone();
+    let error = runtime.run_bounded(&request, 1).unwrap_err();
+    assert!(error.contains("1-byte limit"), "the actual limit failure must be reported: {error}");
+    assert!(Arc::ptr_eq(&before, &session.doc));
+    let inspected = worker_call(&mut runtime, &mut session, "document.inspect", json!({"measure":true}), false);
+    assert_eq!(inspected["bodies"].as_array().unwrap().len(), 1, "the failed reply must not commit its staged box");
+    assert_eq!(inspected["bodies"][0]["volume_mm3"], 24.0);
+    let reply = crate::worker::Reply::decode(&runtime.run(&request).unwrap()).unwrap();
+    source.accept(&mut session, reply).unwrap().result.unwrap();
+    assert_eq!(session.model.state().bodies.len(), 2);
+    assert_eq!(session.evaluations, 0);
+}
+
 #[test]
 fn revision_context_selection_and_replaced_document_reject_old_work() {
     for change in 0..5 {

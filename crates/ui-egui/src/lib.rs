@@ -751,6 +751,8 @@ pub struct SolveApp {
     control_held: std::collections::VecDeque<ControlRequest>,
     /// An agent's design change computing off the window thread ([`control_job`]).
     control_job: Option<control_job::ControlJob>,
+    /// A browser engine worker: the same progress chip and Stop action as native agent work.
+    external_control: Option<(f64, String, std::sync::Arc<std::sync::atomic::AtomicBool>)>,
     /// Agent exports computing on copies of the design.
     control_answering: Vec<control_job::ControlJob>,
     /// The agent cursor acting out control requests.
@@ -938,6 +940,7 @@ impl SolveApp {
             ai_connect: Default::default(),
             control_held: Default::default(),
             control_job: None,
+            external_control: None,
             control_answering: Vec::new(),
             agent: Default::default(),
             pending_shots: Vec::new(),

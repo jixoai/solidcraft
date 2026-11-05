@@ -65,6 +65,8 @@ pub struct ControlRequest {
     pub reply: Sender<ControlResponse>,
     /// Set once the window starts on it; until then it waits its turn (`control.running`, #3654).
     pub started: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// A host cancellation token (for example a browser WebMCP AbortSignal).
+    pub cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
     /// Chat requests already admitted by the gate may outlive a tab switch. This turn's
     /// validity follows them through queues, computation and cursor animation.
     pub(crate) chat_turn: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
@@ -73,10 +75,18 @@ pub struct ControlRequest {
 impl ControlRequest {
     pub fn new(method: impl Into<String>, params: Value) -> (Self, std::sync::mpsc::Receiver<ControlResponse>) {
         let (tx, rx) = std::sync::mpsc::channel();
-        (Self { method: method.into(), params, reply: tx, started: Default::default(), chat_turn: None }, rx)
+        (Self { method: method.into(), params, reply: tx, started: Default::default(), cancel: None, chat_turn: None }, rx)
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.as_ref().is_some_and(|cancel| cancel.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     pub(crate) fn refuse_cancelled_chat(&self) -> bool {
+        if self.is_cancelled() {
+            let _ = self.reply.send(json!({"ok":false,"cancelled":true,"error":"SolidCraft request cancelled"}));
+            return true;
+        }
         if chat_turn_cancelled(self.chat_turn.as_deref()) {
             let _ = self.reply.send(cancelled_chat_response());
             true

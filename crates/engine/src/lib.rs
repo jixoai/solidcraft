@@ -38,6 +38,7 @@ pub mod status_details;
 pub mod status_items;
 pub mod timing;
 pub mod view;
+pub mod worker;
 
 use solidcraft_geom::prelude::*;
 use std::sync::Arc;
