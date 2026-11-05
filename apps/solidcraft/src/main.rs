@@ -643,7 +643,7 @@ fn agent_http(r: &solidcraft_ui_egui::agent_chat::backend::HttpRequest) -> Resul
         .http_status_as_error(false)
         .timeout_global(Some(Duration::from_secs(r.timeout_s.clamp(1, 3600))))
         .timeout_connect(Some(Duration::from_secs(10)))
-        .user_agent("SolidCraft")
+        .user_agent("FDE2E-SolidCraft")
         .max_redirects(0)
         .build()
         .into();
@@ -726,7 +726,7 @@ fn http_call(url: &str, timeout: std::time::Duration) -> Result<ureq::http::Resp
         .http_status_as_error(false)
         .timeout_global(Some(timeout))
         .timeout_connect(Some(Duration::from_secs(5)))
-        .user_agent("SolidCraft-update-check")
+        .user_agent("FDE2E-SolidCraft-update-check")
         .max_redirects(3)
         .build()
         .into();
@@ -899,7 +899,7 @@ fn app_viewport(custom_titlebar: bool) -> Result<egui::ViewportBuilder, eframe::
     let icon =
         egui::IconData { rgba: app_icon::rgba(64).map_err(|e| eframe::Error::AppCreation(std::io::Error::other(e).into()))?, width: 64, height: 64 };
     Ok(egui::ViewportBuilder::default()
-        .with_title("SolidCraft")
+        .with_title(solidcraft_ui_egui::help::PRODUCT_NAME)
         .with_icon(icon)
         .with_inner_size([1600.0, 1000.0])
         .with_min_inner_size([960.0, 600.0])
@@ -928,7 +928,7 @@ impl Drop for DriverClient {
 
 fn main() -> eframe::Result {
     #[cfg(target_os = "macos")]
-    objc2_foundation::NSProcessInfo::processInfo().setProcessName(objc2_foundation::ns_string!("SolidCraft"));
+    objc2_foundation::NSProcessInfo::processInfo().setProcessName(objc2_foundation::ns_string!("FDE2E SolidCraft"));
     mark("main");
     // On OCLP-patched Macs, wgpu picks a Metal Shading Language standard that the system's
     // compiler refuses (`invalid value 'metal3.2'`), because the patched OS reports a newer
@@ -1408,7 +1408,7 @@ fn no_window(error: eframe::Error, tried_cpu: bool, failed: eframe::wgpu::Backen
     };
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title("SolidCraft could not start")
+        .set_title("FDE2E SolidCraft could not start")
         .set_description(message)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();

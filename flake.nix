@@ -165,7 +165,7 @@
 
           meta = {
             description = "Rust-native parametric 3D CAD app";
-            homepage = "https://github.com/bherbruck/solidcraft";
+            homepage = "https://github.com/jixoai/solidcraft";
             license = with pkgs.lib.licenses; [
               mit
               asl20

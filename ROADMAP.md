@@ -1,4 +1,8 @@
-# SolidCraft roadmap
+# FDE2E SolidCraft roadmap
+
+This is the inherited upstream roadmap, not a fork release promise. Upstream milestones and
+historical issue links below retain their original targets. Fork implementation status and
+requirements live in [docs/PRD.md](docs/PRD.md); source and release policy are in [FORK.md](FORK.md).
 
 The short version, for people who use SolidCraft. The detailed developer status (milestone
 tables, limitations, measurements) is in [docs/roadmap-detail.md](docs/roadmap-detail.md).
@@ -7,7 +11,7 @@ tables, limitations, measurements) is in [docs/roadmap-detail.md](docs/roadmap-d
 
 SolidCraft is open-source parametric 3D CAD written in Rust. You sketch, constrain, extrude, and
 change a parameter to watch the timeline rebuild. It runs as a desktop app and in the browser
-([try it](https://solidcraft.io/app)), and it has a command-line tool and an MCP server so that
+(see [browser build instructions](docs/building.md)), and it has a command-line tool and an MCP server so that
 scripts and AI agents can drive the same commands you use.
 
 ## Works today
@@ -77,7 +81,7 @@ permanently.
 - Feature milestones: <https://github.com/tangency-labs/solidcraft/milestones>
 - Issues: <https://github.com/tangency-labs/solidcraft/issues> (area labels such as
   `area:kernel`, `area:sketch` and `area:ui` group them)
-- Discord: <https://discord.gg/FtU4NQNVDH>
+- Fork issues: <https://github.com/jixoai/solidcraft/issues>
 - Releases: <https://github.com/tangency-labs/solidcraft/releases>
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 Status as of **2026-10-14**. SolidCraft supports parametric modelling (sketch →

@@ -109,10 +109,6 @@ pub(crate) fn breadcrumb(p: &egui::Painter, c: egui::Pos2, col: Color32) {
     p.line_segment([pos2(c.x + 1.5, c.y), pos2(c.x - 1.5, c.y + 3.0)], s);
 }
 
-pub(crate) fn brand_mark(p: &egui::Painter, c: Pos2) {
-    brand_mark_styled(p, c, 20.0, crate::theme::Tokens::get().logo, true);
-}
-
 /// The same original mark as a single quiet silhouette, without face seams or outlines.
 pub(crate) fn brand_mark_silhouette(p: &egui::Painter, c: Pos2, height: f32, ink: Color32) {
     brand_mark_styled(p, c, height, [ink; 3], false);

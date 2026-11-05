@@ -4,7 +4,8 @@
 # tree (usage: seo.sh <book-dir>). index.html and introduction.html are the same page: both point at /.
 set -euo pipefail
 dir="${1:?usage: seo.sh <built-book-dir>}"
-base="https://docs.solidcraft.io"
+base="${PAGES_BASE_URL:-https://jixoai.github.io/solidcraft}"
+base="${base%/}"
 cd "$dir"
 urls=()
 while IFS= read -r f; do

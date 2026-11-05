@@ -1,5 +1,12 @@
 # Releasing SolidCraft
 
+This is inherited upstream release documentation, including historical signing and store setup.
+For FDE2E SolidCraft, use `jixoai/solidcraft` and the branch strategy in [../FORK.md](../FORK.md).
+No upstream domain, publisher account, certificate, secret or release is owned by this fork.
+Keep compatible artifact filenames, but use FDE2E SolidCraft for public display names.
+Do not advance the upstream-mirror `main` with fork release changes or advertise packages before
+the fork has built and verified its own release.
+
 Releases are deliberate operations that an agent can complete end to end. Development lands
 on `main`; pushing the selected commit to `release` builds all packages and creates a **draft**
 GitHub Release. Publishing that verified draft is a separate operation. Pushing to `main` or

@@ -37,8 +37,8 @@ struct Tool {
 const TOOLS: &[Tool] = &[
     Tool {
         name: "solidcraft_list_commands",
-        title: "List SolidCraft commands",
-        description: "Every command SolidCraft can run: id, label, toolbar tab and panel, shortcut, \
+        title: "List FDE2E SolidCraft commands",
+        description: "Every command FDE2E SolidCraft can run: id, label, toolbar tab and panel, shortcut, \
             one-line parameter docs and whether it is enabled now. Ids are dotted and lower-case \
             (solid.extrude, sketch.create, solid.box). The whole catalog is large (about 350 KB): ask \
             solidcraft_describe_command about one command instead when you know its id. Read-only.",
@@ -48,7 +48,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "solidcraft_describe_command",
-        title: "Describe a SolidCraft command",
+        title: "Describe an FDE2E SolidCraft command",
         description: "One command's parameters: its one-line parameter docs and, for commands with a \
             typed contract, the JSON Schemas (2020-12) of its parameters and of a successful result. \
             Read-only.",
@@ -58,7 +58,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "solidcraft_execute",
-        title: "Run a SolidCraft command",
+        title: "Run an FDE2E SolidCraft command",
         description: "Run one engine command with JSON parameters, exactly as the toolbar, palette and \
             scripts do; it never opens a dialog. Examples: {command: \"sketch.create\", params: {plane: \"XY\"}}, \
             {command: \"solid.box\", params: {length: 30, width: 20, height: 10}}, {command: \"view.fit\"}. \
@@ -71,7 +71,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "solidcraft_batch",
-        title: "Run several SolidCraft commands",
+        title: "Run several FDE2E SolidCraft commands",
         description: "Run commands in order, stopping at the first error. Each step is {command, params}. \
             With rollback (the default) the design goes back to where the batch started, so the batch is \
             all-or-nothing. File writes cannot be rolled back. A failed step answers ok: false, with \
@@ -84,7 +84,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "solidcraft_inspect",
-        title: "Inspect the SolidCraft design",
+        title: "Inspect the FDE2E SolidCraft design",
         description: "The active design: user parameters, the timeline of features, bodies (volume, area, \
             centre of mass, bounding box, face/edge/vertex counts) and sketches. measure: true measures every \
             body exactly. Read-only.",
@@ -314,7 +314,7 @@ pub mod browser {
     }
 
     fn warn(error: &JsValue) {
-        web_sys::console::warn_1(&format!("SolidCraft WebMCP: {}", message(error)).into());
+        web_sys::console::warn_1(&format!("FDE2E SolidCraft WebMCP: {}", message(error)).into());
     }
 }
 
@@ -340,6 +340,7 @@ mod tests {
             assert!(tool.name.len() <= 128, "{}", tool.name);
             assert!(tool.name.chars().all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c)), "{}", tool.name);
             assert!(!tool.title.is_empty() && !tool.description.is_empty(), "{}", tool.name);
+            assert!(tool.title.contains("FDE2E SolidCraft"), "{}", tool.title);
         }
         let methods: Vec<&str> = TOOLS.iter().filter_map(|tool| (tool.request)(&json!({})).ok().map(|(method, _)| method)).collect();
         assert_eq!(methods, ["engine.commands", "document.inspect"]);

@@ -1,4 +1,4 @@
-# Contributing to SolidCraft
+# Contributing to FDE2E SolidCraft
 
 Agents: start from the router in [AGENTS.md](AGENTS.md), which points to a short skill in [`skills/`](skills/README.md) for each kind of work. This page stays the full human guide.
 
@@ -15,7 +15,8 @@ needed most.
 Before choosing a task, check the [command inventory](docs/features.md) and
 [roadmap](docs/roadmap-detail.md) for implemented capabilities and current priorities.
 
-Questions, ideas or want to say what you're working on? Join the [Discord](https://discord.gg/FtU4NQNVDH).
+Questions and ideas for this fork belong in [FDE2E SolidCraft issues](https://github.com/jixoai/solidcraft/issues).
+The upstream contribution and claim process below applies only when explicitly contributing upstream.
 
 ## Kernel work is paused
 
@@ -34,13 +35,13 @@ build you also need `rustup target add wasm32-unknown-unknown` and [`trunk`](htt
 ([documentation](https://trunk-rs.github.io/trunk/)).
 
 ```sh
-git clone https://github.com/tangency-labs/solidcraft && cd solidcraft
+git clone --branch feat/webmcp-worker https://github.com/jixoai/solidcraft && cd solidcraft
 cargo run --release -p solidcraft -- --sample      # desktop app with a sample part
 cargo xtask test                                   # unit, engine and UI-scenario tests
 cargo xtask ci                                     # everything a PR must pass (see below)
 ```
 
-SolidCraft is the product, repository, Cargo package and executable name.
+FDE2E SolidCraft is this fork's public brand; `solidcraft` remains the repository, Cargo package and executable name.
 Build the desktop app with `cargo build --release -p solidcraft`, or the CLI with
 `cargo build --release -p solidcraft-cli`. Run the CLI with
 `cargo run --release -p solidcraft-cli -- commands` (or `target/release/solidcraft-cli commands`
@@ -149,7 +150,7 @@ The [architecture page](docs/architecture.md) has the layer table. The short ver
    `hand_rolled_camera_input_is_rejected` test fails if a page does.
 
 Labels, parameter docs, messages and docs use the terms in the
-[glossary](https://docs.solidcraft.io/reference/glossary.html): one term for each idea. A change that adds a new
+[glossary](docs/book/src/reference/glossary.md): one term for each idea. A change that adds a new
 idea adds its term there.
 
 [AGENTS.md](AGENTS.md) has the long form of these rules. It's written for AI agents, but it's

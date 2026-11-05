@@ -1,11 +1,11 @@
-# SolidCraft
+# FDE2E SolidCraft
 
-SolidCraft is an open-source parametric 3D CAD application written in pure Rust.
+FDE2E SolidCraft is an open-source parametric 3D CAD application written in pure Rust.
 Sketch on a plane, constrain and dimension the sketch, turn profiles
 into solids with features on a timeline, and change a parameter to watch the whole timeline
 rebuild.
 
-![The sample plate in SolidCraft](generated/sample-plate.png)
+![The sample plate in FDE2E SolidCraft](generated/sample-plate.png)
 
 It runs as:
 
@@ -18,20 +18,20 @@ Everything the user can do is a *command* with JSON parameters. The toolbar, the
 the CLI, the control channel and MCP all run the same commands, so anything you can click you can
 also script, test or hand to an agent.
 
-SolidCraft is early. Sketching, solid modelling, parameters, components with joints, sheet metal
+FDE2E SolidCraft is early. Sketching, solid modelling, parameters, components with joints, sheet metal
 and a plastic-enclosure subset work; surfaces, drawings, CAM and simulation are deferred. The
-[roadmap](https://github.com/bherbruck/solidcraft/blob/main/ROADMAP.md) has the details, and
+[roadmap](https://github.com/jixoai/solidcraft/blob/feat/webmcp-worker/ROADMAP.md) has the details, and
 the [feature list](dev/features.md) lists every command by area, and the
 [reference tests](dev/oracle.md) check modelling results against analytic and FreeCAD values.
 
 New designs are saved as `.sc`. Existing `.solidcraft` designs still open, and Save keeps their name; `solidcraft-cli` commands keep their names and behavior.
 
-This book has two halves: the **user guide** for people modelling with SolidCraft, and the
+This book has two halves: the **user guide** for people modelling with FDE2E SolidCraft, and the
 **developer guide** for people working on it. The [command reference](reference/commands.md) is
 generated from the code on every build.
 
-SolidCraft is licensed MIT OR Apache-2.0. It is independent: behaviour is designed from public
+FDE2E SolidCraft is licensed MIT OR Apache-2.0. It is independent: behaviour is designed from public
 documentation, general CAD conventions and user feedback, and reference tests use analytic
-values and open-source tools. SolidCraft is not affiliated with Autodesk, Dassault Systèmes,
+values and open-source tools. FDE2E SolidCraft is not affiliated with Autodesk, Dassault Systèmes,
 PTC or any other CAD vendor; product names such as Fusion, SolidWorks and Onshape are trademarks of
 their respective owners, named only to describe compatibility.

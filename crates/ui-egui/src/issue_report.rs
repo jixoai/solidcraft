@@ -21,7 +21,7 @@ const MAX_BODY: usize = 24_000;
 // context.
 const MAX_REPORT: usize = 3 * 4 * MAX_ANSWER + MAX_BODY + 1000;
 const MAX_IMAGE_PIXELS: usize = 16_000_000;
-const ISSUE_URL: &str = "https://github.com/tangency-labs/solidcraft/issues/new";
+const ISSUE_URL: &str = "https://github.com/jixoai/solidcraft/issues/new";
 /// GitHub answers a longer link with `414 URI Too Long` (from about 8,200 characters).
 const MAX_URL: usize = 6000;
 /// Someone who isn't signed in is sent to sign in with the link to return to, encoded once more;

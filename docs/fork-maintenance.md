@@ -1,4 +1,28 @@
-# Maintaining the SolidCraft fork
+# Maintaining the FDE2E SolidCraft fork
+
+Public brand and provenance rules are in [../FORK.md](../FORK.md). Keep branding in a separate
+fork commit; after each rebase, inspect UI/catalog names, repository/help/update URLs, PWA and
+installer display metadata, sponsorship/social links and Pages canonical URLs. Do not overwrite
+upstream copyrights, dependency origins or compatibility IDs. No fork release or live deployment
+is implied by the upstream mirror or by a feature-branch push.
+
+## FDE2E branding validation (2026-11-06)
+
+- The browser editor, About window, page/PWA metadata and five live WebMCP tool titles use
+  FDE2E SolidCraft. Real screenshots and logs are under ignored `target/fde2e-branding/`.
+- Targeted native checks pass: 45 update tests, 8 Help tests, 6 header/layout tests and the MCP
+  handshake test. The updater accepts fork releases and rejects both upstream owners.
+- The 15-crate Wasm check, browser build, real Chrome WebMCP modelling and registration fallbacks, browser API and
+  offline/update tests pass. Message IDs and placeholders remain unchanged in 35 locale catalogs.
+- Applicable packaging Python tests pass (24). Four Windows-specific checks cannot run on this
+  machine because `powershell` is absent; the platform display metadata and compatibility paths
+  were checked separately. No installer build or code-signing claim is made.
+- `cargo xtask ci` passes static gates and workspace native Clippy, then its unbounded native
+  run times out in two untouched `help_output` fuzz-CLI tests. Both pass when run in isolation
+  (0.11 seconds). Remaining full-CI processes were stopped; **full CI is not green**.
+- For the next full validation, bound native binary concurrency with
+  `SOLIDCRAFT_TEST_JOBS=4 cargo xtask ci`. This does not waive the existing baseline failures
+  recorded below. Never switch branches while CI runs.
 
 This fork keeps upstream history separate from the browser WebMCP implementation. The product requirements are in [PRD.md](PRD.md). Contribution and validation rules remain in [CONTRIBUTING.md](../CONTRIBUTING.md).
 

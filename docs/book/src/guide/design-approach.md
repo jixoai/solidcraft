@@ -122,5 +122,5 @@ The full list, with what each term must not be confused with, is in the
 - The [command reference](../reference/commands.md) describes every command and its parameters.
 - **Report a bug**, in the title bar, drafts an issue report with the details the maintainers
   need, for you to review and file on GitHub; the app doesn't send anything itself.
-- Questions and ideas: the [Discord](https://discord.gg/FtU4NQNVDH) and the
-  [issue tracker](https://github.com/tangency-labs/solidcraft/issues).
+- Questions and ideas: the fork's
+  [issue tracker](https://github.com/jixoai/solidcraft/issues).

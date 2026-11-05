@@ -153,7 +153,7 @@ pub fn run_webmcp(site: &str) -> Result<(), String> {
             window.__unhandledRejections = 0;
             window.addEventListener('unhandledrejection', () => ++window.__unhandledRejections);
             const warn = console.warn;
-            console.warn = (...args) => { const text = args.join(' '); if (text.startsWith('SolidCraft WebMCP:')) window.__registrationWarnings.push(text); warn(...args); };
+            console.warn = (...args) => { const text = args.join(' '); if (text.startsWith('FDE2E SolidCraft WebMCP:')) window.__registrationWarnings.push(text); warn(...args); };
             Object.defineProperty(document, 'modelContext', {value: {
                 registerTool(tool) {
                     if (tool.name === 'solidcraft_list_commands') throw new Error('synchronous refusal');

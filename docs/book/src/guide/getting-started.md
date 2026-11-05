@@ -6,13 +6,13 @@ working (see the [compatibility notes](https://github.com/tangency-labs/solidcra
 
 ## Desktop
 
-Download the installer for your system from the
-[Download section of the README](https://github.com/tangency-labs/solidcraft#download) or the
-[releases page](https://github.com/tangency-labs/solidcraft/releases), or build it yourself with
-stable Rust (1.95 or newer):
+FDE2E SolidCraft currently requires building from source with stable Rust (1.95 or newer).
+Branded packages, when published, will appear on the
+[fork releases page](https://github.com/jixoai/solidcraft/releases).
+Upstream installers do not contain this fork's implementation or branding.
 
 ```sh
-git clone https://github.com/tangency-labs/solidcraft && cd solidcraft
+git clone --branch feat/webmcp-worker https://github.com/jixoai/solidcraft && cd solidcraft
 cargo run --release -p solidcraft -- --sample   # opens with a sample part
 ```
 
@@ -41,8 +41,8 @@ From there, [A tour of the window](ui-tour.md) shows what's where, and
 
 Open the release `.dmg` and drag `SolidCraft.app` onto Applications.
 
-The release `.dmg` is signed with a Developer ID and notarized by Apple, and the app and the disk
-image carry the notarization ticket, so macOS opens SolidCraft normally, even offline.
+This fork does not claim Developer ID signing or Apple notarisation. Upstream certificates and
+store credentials do not apply to FDE2E SolidCraft builds.
 
 A copy you build yourself, or one from a fork that has no signing keys, is signed ad hoc and not
 notarized, so macOS blocks its first launch with "SolidCraft can't be opened, because Apple can't
@@ -80,15 +80,14 @@ to the same user installation:
 
 ```sh
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak remote-add --user --if-not-exists solidcraft https://docs.solidcraft.io/flatpak/solidcraft.flatpakrepo
+flatpak remote-add --user --if-not-exists solidcraft https://YOUR-DEPLOYMENT/flatpak/solidcraft.flatpakrepo
 flatpak install --user solidcraft io.tangencylabs.solidcraft
 flatpak run io.tangencylabs.solidcraft
 ```
 
-A SolidCraft remote added before the project moved to `docs.solidcraft.io` (from
-`bherbruck.github.io`) no longer finds updates. Point it at the new address, then update:
-`flatpak remote-modify --user --url=https://docs.solidcraft.io/flatpak/repo/ solidcraft` and
-`flatpak update --user`.
+Replace `YOUR-DEPLOYMENT` only after a fork Flatpak feed has actually been published.
+Do not point fork updates at upstream feeds. For historical upstream feed migration,
+see the [compatibility notes](https://github.com/jixoai/solidcraft/blob/feat/webmcp-worker/docs/compatibility.md).
 
 Earlier releases used the application IDs `ai.storyteller.solidcraft` and, up to 0.7,
 `ai.storyteller.solvecraft`. If you installed one of those from the SolidCraft remote,
@@ -178,25 +177,25 @@ For example, expose a reverse-proxy service in Compose, routing `/` to
 `/?open=/dutchman/jobs/abc/part.sc` without a separate origin or CORS setup.
 Paths must start with one `/`; protocol-relative paths (`//`), backslashes, control
 characters, and decoded `..` segments are refused. Redirects must end at HTTPS or
-the page's own origin. Embed mode and **Open in SolidCraft** preserve the path.
+the page's own origin. Embed mode and **Open in FDE2E SolidCraft** preserve the path.
 
 Add `embed` to show the viewport, timeline, browser tree, and joint controls without
 the ribbon, file menus, or start page:
 
 ```html
-<iframe src="https://docs.solidcraft.io/app/?embed&open=https://example.org/arm.sc"
+<iframe src="https://YOUR-DEPLOYMENT/app/?embed&open=https://example.org/arm.sc"
         width="960" height="540" title="Arm design"></iframe>
 ```
 
 Embedded designs do not save designs, preferences, or recovery copies to browser
-storage and do not ask before unloading. **Open in SolidCraft** opens the same link
+storage and do not ask before unloading. **Open in FDE2E SolidCraft** opens the same link
 in the full app in a new tab. `?embed` without `open` keeps the normal app layout.
 
 Use `embed=editor` instead for a page that keeps the designs itself and has people model in
 the frame. It needs no `open`:
 
 ```html
-<iframe src="https://docs.solidcraft.io/app/?embed=editor"
+<iframe src="https://YOUR-DEPLOYMENT/app/?embed=editor"
         width="1280" height="800" title="Modelling"></iframe>
 ```
 

@@ -7,11 +7,12 @@ use crate::SolveApp;
 use crate::ui_kit;
 use crate::ui_kit::{Container, Surface};
 
+pub const PRODUCT_NAME: &str = "FDE2E SolidCraft";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const COMMIT: &str = env!("SOLIDCRAFT_COMMIT");
 pub const BUILD_DATE: &str = env!("SOLIDCRAFT_BUILD_DATE");
-/// The user and developer guide (docs/book, published by .github/workflows/pages.yml).
-pub const DOCS_URL: &str = "https://docs.solidcraft.io/";
+/// The user and developer guide in the fork implementation branch.
+pub const DOCS_URL: &str = "https://github.com/jixoai/solidcraft/tree/feat/webmcp-worker/docs/book/src";
 const ATTRIBUTION: &str = include_str!("../../../ATTRIBUTION.md");
 use solidcraft_engine::licences::{LICENSE_APACHE, LICENSE_MIT, NOTICE, THIRD_PARTY};
 
@@ -30,7 +31,7 @@ pub fn diagnostics(app: &SolveApp) -> String {
     let renderer = if app.viewport.gpu.is_some() { "GPU" } else { "CPU" };
     let count = |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
     format!(
-        "SolidCraft {VERSION} ({COMMIT}, built {BUILD_DATE})\nOS: {} {}\nRenderer: {renderer}{}\nWindow: {}\nDesign: {} ({}, {})",
+        "{PRODUCT_NAME} {VERSION} ({COMMIT}, built {BUILD_DATE})\nOS: {} {}\nRenderer: {renderer}{}\nWindow: {}\nDesign: {} ({}, {})",
         std::env::consts::OS,
         std::env::consts::ARCH,
         app.help.gpu.as_ref().map(|g| format!(", {g}")).unwrap_or_default(),
@@ -239,7 +240,8 @@ mod tests {
         assert!(ATTRIBUTION.contains("ATTRIBUTION") || ATTRIBUTION.contains("Attribution"));
         let app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
         let d = diagnostics(&app);
-        assert!(d.contains(VERSION) && d.contains(std::env::consts::OS) && d.contains("Renderer: CPU"), "{d}");
+        assert!(d.starts_with(PRODUCT_NAME) && d.contains(VERSION) && d.contains(std::env::consts::OS) && d.contains("Renderer: CPU"), "{d}");
+        assert!(DOCS_URL.starts_with("https://github.com/jixoai/solidcraft/"));
     }
 
     /// One feature and one body are counted in the singular (#9085), more in the plural.

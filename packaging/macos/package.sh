@@ -216,7 +216,10 @@ test -s "$MNT/.DS_Store" && test -s "$MNT/.VolumeIcon.icns"
 test -s "$MNT/.background.tiff"
 plutil -lint "$MNT/SolidCraft.app/Contents/Info.plist"
 # Check the names Finder/LaunchServices actually use, and the bundle identity.
-for key in CFBundleName CFBundleDisplayName CFBundleExecutable CFBundleIconFile CFBundleIconName; do
+for key in CFBundleName CFBundleDisplayName; do
+  test "$(/usr/libexec/PlistBuddy -c "Print :$key" "$MNT/SolidCraft.app/Contents/Info.plist")" = "FDE2E SolidCraft"
+done
+for key in CFBundleExecutable CFBundleIconFile CFBundleIconName; do
   test "$(/usr/libexec/PlistBuddy -c "Print :$key" "$MNT/SolidCraft.app/Contents/Info.plist")" = SolidCraft
 done
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$MNT/SolidCraft.app/Contents/Info.plist")" = "$MACOS_BUNDLE_ID"

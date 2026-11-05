@@ -9,8 +9,8 @@ version = "0.40.0-rc.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
-authors = ["SolidCraft contributors"]
-repository = "https://github.com/bherbruck/solidcraft"
+authors = ["FDE2E", "SolidCraft contributors"]
+repository = "https://github.com/jixoai/solidcraft"
 
 [workspace.dependencies]
 robust = "1.2"

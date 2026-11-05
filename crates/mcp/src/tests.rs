@@ -424,6 +424,8 @@ fn handshake_and_tools_list() {
         call(&mut s, 1, "initialize", json!({"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}));
     assert_eq!(init["result"]["protocolVersion"], "2025-03-26");
     assert_eq!(init["result"]["serverInfo"]["name"], "solidcraft");
+    assert_eq!(init["result"]["serverInfo"]["title"], "FDE2E SolidCraft");
+    assert!(init["result"]["instructions"].as_str().unwrap().starts_with("FDE2E SolidCraft"));
     assert!(init["result"]["capabilities"]["tools"].is_object());
     assert!(init["result"]["instructions"].as_str().unwrap().contains("headless"));
     // An unknown version gets ours.

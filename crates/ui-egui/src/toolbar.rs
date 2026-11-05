@@ -410,24 +410,12 @@ pub fn app_bar(app: &mut SolveApp, ui: &mut egui::Ui) {
             crate::titlebar::drag_area(ui, r);
         }
         let left = r.left() + if app.integrated_titlebar { crate::titlebar::TRAFFIC_LIGHTS } else { 0.0 };
-        // Keep the current header controls and product name when merging the new mark.
         let compact_actions = r.right() - left < 640.0;
-        // Brand mark: the SolidCraft logo, drawn in code from the SVG's own coordinates
-        // (viewBox 357 x 412). Same 20 px height and centre as the old block.
-        {
-            let c = pos2(left + 20.0, r.center().y);
-            crate::icons::glyphs::brand_mark(ui.painter(), c);
-        }
-        if !compact_actions {
-            ui.painter().text(
-                pos2(left + 36.0, r.center().y),
-                Align2::LEFT_CENTER,
-                "SolidCraft",
-                crate::fonts::semibold(t.font_heading),
-                t.app_bar_text,
-            );
-        }
-        let mut x = left + if compact_actions { 56.0 } else { 128.0 };
+        let brand = if compact_actions { "FDE2E" } else { crate::help::PRODUCT_NAME };
+        let brand_font = crate::fonts::semibold(t.font_heading);
+        let brand_width = ui.painter().layout_no_wrap(brand.to_owned(), brand_font.clone(), t.app_bar_text).size().x;
+        ui.painter().text(pos2(left + 8.0, r.center().y), Align2::LEFT_CENTER, brand, brand_font, t.app_bar_text);
+        let mut x = left + brand_width + 32.0;
         let home = Rect::from_center_size(pos2(x - 4.0, r.center().y), vec2(32.0, 32.0));
         let idle = !app.file_load.busy();
         let home_response = ui.interact(home, ui.scope_id().with("appbar_home"), if idle { Sense::click() } else { Sense::hover() });
@@ -4481,7 +4469,7 @@ mod header_report_tests {
         h.step(&json!({"click":{"handle":"appbar:help"}})).unwrap();
         assert!(h.app.help.menu);
         let version = crate::i18n::format("help.version", &[("version", crate::update::current_version())]);
-        assert!(h.widget("About SolidCraft").is_some());
+        assert!(h.widget("About FDE2E SolidCraft").is_some());
         assert!(h.widget(&version).is_none(), "the Help menu has no version row");
     }
 
@@ -4520,7 +4508,7 @@ mod header_report_tests {
         h.step(&json!({"click":{"handle":"appbar:help"}})).unwrap();
         assert!(h.app.help.menu);
         let version = crate::i18n::format("help.version", &[("version", crate::update::current_version())]);
-        let [_, about] = h.widget("About SolidCraft").unwrap();
+        let [_, about] = h.widget("About FDE2E SolidCraft").unwrap();
         let [_, row] = h.widget(&version).expect("the Help menu lists the version");
         let [_, shortcuts] = h.widget("Keyboard Shortcuts").unwrap();
         assert!(about < row && row < shortcuts, "between About and Keyboard Shortcuts");

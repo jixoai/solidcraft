@@ -25,7 +25,9 @@ edge="${2:?edge build directory required}"
 repo="${GITHUB_REPOSITORY:?}"
 
 # Outside /app/, so the app's service worker has no part in it.
-cp "$(dirname "${BASH_SOURCE[0]}")"/web/transfer/app-transfer.{html,js} "$site"/
+if [ "$repo" = "tangency-labs/solidcraft" ]; then
+  cp "$(dirname "${BASH_SOURCE[0]}")"/web/transfer/app-transfer.{html,js} "$site"/
+fi
 
 # Version order, newest last: 0.31.0-rc.2 sorts after 0.31.0-rc.1 and before 0.31.0.
 version_sort() { sed 's/-/~/' | sort -V | sed 's/~/-/'; }
@@ -53,7 +55,7 @@ placeholder() {
   local dir="$1" why="$2"
   mkdir -p "$dir"
   cat >"$dir/index.html" <<HTML
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>SolidCraft release candidate</title></head><body style="font-family:sans-serif;max-width:40em;margin:3em auto;padding:0 1em"><h1>No release candidate right now</h1><p>$why</p><p><a href="../app/">Open SolidCraft (the latest release)</a> or <a href="../app-edge/">the edge build</a>.</p></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>FDE2E SolidCraft release candidate</title></head><body style="font-family:sans-serif;max-width:40em;margin:3em auto;padding:0 1em"><h1>No release candidate right now</h1><p>$why</p><p><a href="../app/">Open FDE2E SolidCraft (the latest release)</a> or <a href="../app-edge/">the edge build</a>.</p></body></html>
 HTML
 }
 
